@@ -1,0 +1,3 @@
+[submodule "zspotify"]
+	path = zspotify
+	url = https://github.com/Footsiefat/zspotify
