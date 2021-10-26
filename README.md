@@ -73,6 +73,8 @@ install python from
 https://www.python.org/downloads/release/python-397/
 follow on screen prompts and complete.
 
+I dont recommend the python from the windows store
+
 install git from 
 https://gitforwindows.org/
 follow on screen prompts and complete.
