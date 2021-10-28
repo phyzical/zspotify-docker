@@ -5,7 +5,7 @@ RUN apk --update add git ffmpeg
 FROM base as builder
 RUN mkdir /install
 WORKDIR /install
-COPY zspotify/requirements.txt /requirements.txt
+COPY requirements.txt /requirements.txt
 RUN apk add gcc libc-dev zlib zlib-dev jpeg-dev \
     && pip install --prefix="/install" -r /requirements.txt
 
@@ -13,6 +13,7 @@ RUN apk add gcc libc-dev zlib zlib-dev jpeg-dev \
 FROM base
 
 COPY --from=builder /install /usr/local
-COPY zspotify/zspotify /app
+COPY zspotify /app
+COPY *zs_config.json /
 WORKDIR /app
 ENTRYPOINT ["/usr/local/bin/python", "__main__.py"]
