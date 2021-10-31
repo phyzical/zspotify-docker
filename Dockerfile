@@ -13,7 +13,7 @@ RUN apk add gcc libc-dev zlib zlib-dev jpeg-dev \
 FROM base
 
 COPY --from=builder /install /usr/local
-COPY /zspotify/ /app
+COPY /zspotify /app
 COPY *zs_config.json /
 WORKDIR /app
-ENTRYPOINT ["/usr/local/bin/python", "/app/zspotify/__main__.py"]
+ENTRYPOINT ["/usr/local/bin/python", "/app/__main__.py"]
