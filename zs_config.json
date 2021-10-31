@@ -8,5 +8,5 @@
     "OVERRIDE_AUTO_WAIT": false,
     "CHUNK_SIZE": 50000,
     "SPLIT_ALBUM_DISCS": false,
-    "DOWNLOAD_REAL_TIME": true
+    "DOWNLOAD_REAL_TIME": false
 }
