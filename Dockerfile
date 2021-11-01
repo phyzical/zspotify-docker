@@ -14,7 +14,7 @@ FROM base
 
 COPY --from=builder /install /usr/local
 CMD rm -r /app/*.py
-CPPY zspotify /app
+COPY zspotify /app
 COPY *zs_config.json /
 
 WORKDIR /app
