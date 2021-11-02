@@ -5,7 +5,7 @@ RUN apk --update add git ffmpeg
 FROM base as builder
 RUN mkdir /install
 WORKDIR /install
-COPY requirements.txt /requirements.txt
+COPY /zspotify/requirements.txt /requirements.txt
 RUN apk add gcc libc-dev zlib zlib-dev jpeg-dev \
     && pip install --prefix="/install" -r /requirements.txt
 
