@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from typing import Any, Tuple, List
 
@@ -9,9 +10,10 @@ from pydub import AudioSegment
 from tqdm import tqdm
 
 from const import TRACKS, ALBUM, NAME, ITEMS, DISC_NUMBER, TRACK_NUMBER, IS_PLAYABLE, ARTISTS, IMAGES, URL, \
-    RELEASE_DATE, ID, TRACKS_URL, SAVED_TRACKS_URL, SPLIT_ALBUM_DISCS, ROOT_PATH, DOWNLOAD_FORMAT, CHUNK_SIZE, \
-    SKIP_EXISTING_FILES, ANTI_BAN_WAIT_TIME, OVERRIDE_AUTO_WAIT, BITRATE, CODEC_MAP, EXT_MAP, DOWNLOAD_REAL_TIME
-from utils import sanitize_data, set_audio_tags, set_music_thumbnail, create_download_directory
+    RELEASE_DATE, ID, TRACKS_URL, SAVED_TRACKS_URL, TRACK_STATS_URL, SPLIT_ALBUM_DISCS, ROOT_PATH, DOWNLOAD_FORMAT, \
+    CHUNK_SIZE, SKIP_EXISTING_FILES, ANTI_BAN_WAIT_TIME, OVERRIDE_AUTO_WAIT, BITRATE, CODEC_MAP, EXT_MAP, DOWNLOAD_REAL_TIME
+from utils import fix_filename, set_audio_tags, set_music_thumbnail, create_download_directory, \
+    get_directory_song_ids, add_to_directory_song_ids
 from zspotify import ZSpotify
 
 
@@ -38,9 +40,9 @@ def get_song_info(song_id) -> Tuple[List[str], str, str, Any, Any, Any, Any, Any
 
     artists = []
     for data in info[TRACKS][0][ARTISTS]:
-        artists.append(sanitize_data(data[NAME]))
-    album_name = sanitize_data(info[TRACKS][0][ALBUM][NAME])
-    name = sanitize_data(info[TRACKS][0][NAME])
+        artists.append(data[NAME])
+    album_name = info[TRACKS][0][ALBUM][NAME]
+    name = info[TRACKS][0][NAME]
     image_url = info[TRACKS][0][ALBUM][IMAGES][0][URL]
     release_year = info[TRACKS][0][ALBUM][RELEASE_DATE].split('-')[0]
     disc_number = info[TRACKS][0][DISC_NUMBER]
@@ -50,6 +52,21 @@ def get_song_info(song_id) -> Tuple[List[str], str, str, Any, Any, Any, Any, Any
 
     return artists, album_name, name, image_url, release_year, disc_number, track_number, scraped_song_id, is_playable
 
+def get_song_duration(song_id: str) -> float:
+    """ Retrieves duration of song in second as is on spotify """
+
+    resp = ZSpotify.invoke_url(f'{TRACK_STATS_URL}{song_id}')
+
+    # get duration in miliseconds
+    ms_duration = resp['duration_ms']
+    # convert to seconds
+    duration = float(ms_duration)/1000
+
+    # debug
+    # print(duration)
+    # print(type(duration))
+
+    return duration
 
 # noinspection PyBroadException
 def download_track(track_id: str, extra_paths='', prefix=False, prefix_value='', disable_progressbar=False) -> None:
@@ -66,13 +83,25 @@ def download_track(track_id: str, extra_paths='', prefix=False, prefix_value='',
             download_directory = os.path.join(os.path.dirname(
                 __file__), ZSpotify.get_config(ROOT_PATH), extra_paths)
 
-        song_name = artists[0] + ' - ' + name
+        song_name = fix_filename(artists[0]) + ' - ' + fix_filename(name)
         if prefix:
             song_name = f'{prefix_value.zfill(2)} - {song_name}' if prefix_value.isdigit(
             ) else f'{prefix_value} - {song_name}'
 
         filename = os.path.join(
             download_directory, f'{song_name}.{EXT_MAP.get(ZSpotify.get_config(DOWNLOAD_FORMAT).lower())}')
+
+        check_name = os.path.isfile(filename) and os.path.getsize(filename)
+        check_id = scraped_song_id in get_directory_song_ids(download_directory)
+
+        # a song with the same name is installed
+        if not check_id and check_name:
+            c = len([file for file in os.listdir(download_directory)
+                     if re.search(f'^{song_name}_', file)]) + 1
+
+            filename = os.path.join(
+                download_directory, f'{song_name}_{c}.{EXT_MAP.get(ZSpotify.get_config(DOWNLOAD_FORMAT))}')
+
 
     except Exception as e:
         print('###   SKIPPING SONG - FAILED TO QUERY METADATA   ###')
@@ -83,7 +112,7 @@ def download_track(track_id: str, extra_paths='', prefix=False, prefix_value='',
                 print('\n###   SKIPPING:', song_name,
                     '(SONG IS UNAVAILABLE)   ###')
             else:
-                if os.path.isfile(filename) and os.path.getsize(filename) and ZSpotify.get_config(SKIP_EXISTING_FILES):
+                if check_id and check_name and ZSpotify.get_config(SKIP_EXISTING_FILES):
                     print('\n###   SKIPPING:', song_name,
                         '(SONG ALREADY EXISTS)   ###')
                 else:
@@ -105,8 +134,6 @@ def download_track(track_id: str, extra_paths='', prefix=False, prefix_value='',
                     ) as p_bar:
                         for chunk in range(int(total_size / ZSpotify.get_config(CHUNK_SIZE)) + 1):
                             data = stream.input_stream.stream().read(ZSpotify.get_config(CHUNK_SIZE))
-                            if data == b'':
-                                break
                             p_bar.update(file.write(data))
                             if ZSpotify.get_config(DOWNLOAD_REAL_TIME):
                                 if chunk == 0:
@@ -118,6 +145,10 @@ def download_track(track_id: str, extra_paths='', prefix=False, prefix_value='',
                     set_audio_tags(filename, artists, name, album_name,
                                 release_year, disc_number, track_number)
                     set_music_thumbnail(filename, image_url)
+
+                    # add song id to download directory's .song_ids file
+                    if not check_id:
+                        add_to_directory_song_ids(download_directory, scraped_song_id)
 
                     if not ZSpotify.get_config(OVERRIDE_AUTO_WAIT):
                         time.sleep(ZSpotify.get_config(ANTI_BAN_WAIT_TIME))
