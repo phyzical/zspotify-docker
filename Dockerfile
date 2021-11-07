@@ -17,4 +17,4 @@ COPY --from=builder /install /usr/local
 COPY /zspotify /app
 COPY *zs_config.json /
 WORKDIR /app
-ENTRYPOINT ["/usr/local/bin/python", "/app/__main__.py"]
+ENTRYPOINT ["/usr/local/bin/python", "/app/__main__.py","-s"]
