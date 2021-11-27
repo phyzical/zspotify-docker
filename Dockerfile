@@ -10,11 +10,9 @@ RUN apk add gcc libc-dev zlib zlib-dev jpeg-dev \
     && pip install --prefix="/install" -r /requirements.txt
 
 
-
 FROM base
 
 COPY --from=builder /install /usr/local
-COPY /zspotify /app
-COPY *zs_config.json /
+COPY zspotify /app
 WORKDIR /app
-ENTRYPOINT ["/usr/local/bin/python", "/app/__main__.py","-s"]
+ENTRYPOINT ["/usr/local/bin/python", "__main__.py"]

@@ -1,3 +1,5 @@
+import datetime
+import math
 import os
 import platform
 import re
@@ -10,7 +12,8 @@ import music_tag
 import requests
 
 from const import ARTIST, TRACKTITLE, ALBUM, YEAR, DISCNUMBER, TRACKNUMBER, ARTWORK, \
-    WINDOWS_SYSTEM
+    WINDOWS_SYSTEM, ALBUMARTIST
+from zspotify import ZSpotify
 
 
 class MusicFormat(str, Enum):
@@ -28,6 +31,33 @@ def create_download_directory(download_path: str) -> None:
         with open(hidden_file_path, 'w', encoding='utf-8') as f:
             pass
 
+
+def get_previously_downloaded() -> List[str]:
+    """ Returns list of all time downloaded songs """
+
+    ids = []
+    archive_path = ZSpotify.CONFIG.get_song_archive()
+
+    if os.path.exists(archive_path):
+        with open(archive_path, 'r', encoding='utf-8') as f:
+            ids = [line.strip().split('\t')[0] for line in f.readlines()]
+
+    return ids
+
+
+def add_to_archive(song_id: str, filename: str, author_name: str, song_name: str) -> None:
+    """ Adds song id to all time installed songs archive """
+
+    archive_path = ZSpotify.CONFIG.get_song_archive()
+
+    if os.path.exists(archive_path):
+        with open(archive_path, 'a', encoding='utf-8') as file:
+            file.write(f'{song_id}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\t{author_name}\t{song_name}\t{filename}\n')
+    else:
+        with open(archive_path, 'w', encoding='utf-8') as file:
+            file.write(f'{song_id}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\t{author_name}\t{song_name}\t{filename}\n')
+
+
 def get_directory_song_ids(download_path: str) -> List[str]:
     """ Gets song ids of songs in directory """
 
@@ -36,18 +66,20 @@ def get_directory_song_ids(download_path: str) -> List[str]:
     hidden_file_path = os.path.join(download_path, '.song_ids')
     if os.path.isfile(hidden_file_path):
         with open(hidden_file_path, 'r', encoding='utf-8') as file:
-            song_ids.extend([line.strip() for line in file.readlines()])
+            song_ids.extend([line.strip().split('\t')[0] for line in file.readlines()])
 
     return song_ids
 
-def add_to_directory_song_ids(download_path: str, song_id: str) -> None:
+
+def add_to_directory_song_ids(download_path: str, song_id: str, filename: str, author_name: str, song_name: str) -> None:
     """ Appends song_id to .song_ids file in directory """
 
     hidden_file_path = os.path.join(download_path, '.song_ids')
     # not checking if file exists because we need an exception
     # to be raised if something is wrong
     with open(hidden_file_path, 'a', encoding='utf-8') as file:
-        file.write(f'{song_id}\n')
+        file.write(f'{song_id}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\t{author_name}\t{song_name}\t{filename}\n')
+
 
 def get_downloaded_song_duration(filename: str) -> float:
     """ Returns the downloaded file's duration in seconds """
@@ -59,12 +91,6 @@ def get_downloaded_song_duration(filename: str) -> float:
     duration = float(duration)
 
     return duration
-
-def wait(seconds: int = 3) -> None:
-    """ Pause for a set number of seconds """
-    for second in range(seconds)[::-1]:
-        print(f'\rWait for {second + 1} second(s)...', end='')
-        time.sleep(1)
 
 
 def split_input(selection) -> List[str]:
@@ -80,15 +106,15 @@ def split_input(selection) -> List[str]:
     return inputs
 
 
-def splash() -> None:
+def splash() -> str:
     """ Displays splash screen """
-    print("""
+    return """
 ███████ ███████ ██████   ██████  ████████ ██ ███████ ██    ██
    ███  ██      ██   ██ ██    ██    ██    ██ ██       ██  ██
   ███   ███████ ██████  ██    ██    ██    ██ █████     ████
  ███         ██ ██      ██    ██    ██    ██ ██         ██
 ███████ ███████ ██       ██████     ██    ██ ██         ██
-    """)
+    """
 
 
 def clear() -> None:
@@ -102,6 +128,7 @@ def clear() -> None:
 def set_audio_tags(filename, artists, name, album_name, release_year, disc_number, track_number) -> None:
     """ sets music_tag metadata """
     tags = music_tag.load_file(filename)
+    tags[ALBUMARTIST] = artists[0]
     tags[ARTIST] = conv_artist_format(artists)
     tags[TRACKTITLE] = name
     tags[ALBUM] = album_name
@@ -229,4 +256,27 @@ def fix_filename(name):
     >>> all('_' == fix_filename(chr(i)) for i in list(range(32)))
     True
     """
-    return re.sub(r'[/\\:|<>"?*\0-\x1f]|^(AUX|COM[1-9]|CON|LPT[1-9]|NUL|PRN)(?![^.])|^\s|[\s.]$', "_", name, flags=re.IGNORECASE)
+    return re.sub(r'[/\\:|<>"?*\0-\x1f]|^(AUX|COM[1-9]|CON|LPT[1-9]|NUL|PRN)(?![^.])|^\s|[\s.]$', "_", str(name), flags=re.IGNORECASE)
+
+
+def fmt_seconds(secs: float) -> str:
+    val = math.floor(secs)
+
+    s = math.floor(val % 60)
+    val -= s
+    val /= 60
+
+    m = math.floor(val % 60)
+    val -= m
+    val /= 60
+
+    h = math.floor(val)
+
+    if h == 0 and m == 0 and s == 0:
+        return "0"
+    elif h == 0 and m == 0:
+        return f'{s}'.zfill(2)
+    elif h == 0:
+        return f'{m}'.zfill(2) + ':' + f'{s}'.zfill(2)
+    else:
+        return f'{h}'.zfill(2) + ':' + f'{m}'.zfill(2) + ':' + f'{s}'.zfill(2)

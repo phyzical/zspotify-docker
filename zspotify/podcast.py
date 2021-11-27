@@ -3,10 +3,9 @@ from typing import Optional, Tuple
 
 from librespot.audio.decoders import VorbisOnlyAudioQuality
 from librespot.metadata import EpisodeId
-from tqdm import tqdm
 
-from const import (CHUNK_SIZE, ERROR, ID, ITEMS, NAME, ROOT_PODCAST_PATH, SHOW,
-                   SKIP_EXISTING_FILES)
+from const import (ERROR, ID, ITEMS, NAME, SHOW)
+from termoutput import PrintChannel, Printer
 from utils import create_download_directory, fix_filename
 from zspotify import ZSpotify
 
@@ -15,7 +14,7 @@ SHOWS_URL = 'https://api.spotify.com/v1/shows'
 
 
 def get_episode_info(episode_id_str) -> Tuple[Optional[str], Optional[str]]:
-    info = ZSpotify.invoke_url(f'{EPISODE_INFO_URL}/{episode_id_str}')
+    (raw, info) = ZSpotify.invoke_url(f'{EPISODE_INFO_URL}/{episode_id_str}')
     if ERROR in info:
         return None, None
     return fix_filename(info[SHOW][NAME]), fix_filename(info[NAME])
@@ -71,18 +70,14 @@ def download_episode(episode_id) -> None:
     extra_paths = podcast_name + '/'
 
     if podcast_name is None:
-        print('###   SKIPPING: (EPISODE NOT FOUND)   ###')
+        Printer.print(PrintChannel.ERRORS, '###   SKIPPING: (EPISODE NOT FOUND)   ###')
     else:
         filename = podcast_name + ' - ' + episode_name
 
         direct_download_url = ZSpotify.invoke_url(
             'https://api-partner.spotify.com/pathfinder/v1/query?operationName=getEpisode&variables={"uri":"spotify:episode:' + episode_id + '"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"224ba0fd89fcfdfb3a15fa2d82a6112d3f4e2ac88fba5c6713de04d1b72cf482"}}')["data"]["episode"]["audio"]["items"][-1]["url"]
 
-        download_directory = os.path.join(
-            os.path.dirname(__file__),
-            ZSpotify.get_config(ROOT_PODCAST_PATH),
-            extra_paths,
-        )
+        download_directory = os.path.join(ZSpotify.CONFIG.get_root_podcast_path(), extra_paths)
         download_directory = os.path.realpath(download_directory)
         create_download_directory(download_directory)
 
@@ -97,27 +92,21 @@ def download_episode(episode_id) -> None:
             if (
                 os.path.isfile(filepath)
                 and os.path.getsize(filepath) == total_size
-                and ZSpotify.get_config(SKIP_EXISTING_FILES)
+                and ZSpotify.CONFIG.get_skip_existing_files()
             ):
-                print(
-                    "\n###   SKIPPING:",
-                    podcast_name,
-                    "-",
-                    episode_name,
-                    "(EPISODE ALREADY EXISTS)   ###",
-                )
+                Printer.print(PrintChannel.SKIPS, "\n###   SKIPPING: " + podcast_name + " - " + episode_name + " (EPISODE ALREADY EXISTS)   ###")
                 return
 
-            with open(filepath, 'wb') as file, tqdm(
+            with open(filepath, 'wb') as file, Printer.progress(
                 desc=filename,
                 total=total_size,
                 unit='B',
                 unit_scale=True,
                 unit_divisor=1024
             ) as bar:
-                for _ in range(int(total_size / ZSpotify.get_config(CHUNK_SIZE)) + 1):
+                for _ in range(int(total_size / ZSpotify.CONFIG.get_chunk_size()) + 1):
                     bar.update(file.write(
-                        stream.input_stream.stream().read(ZSpotify.get_config(CHUNK_SIZE))))
+                        stream.input_stream.stream().read(ZSpotify.CONFIG.get_chunk_size())))
         else:
             filepath = os.path.join(download_directory, f"{filename}.mp3")
             download_podcast_directly(direct_download_url, filepath)
