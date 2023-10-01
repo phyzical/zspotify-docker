@@ -157,3 +157,5 @@ zs_config.json
 
 # MacOS file
 .DS_Store
+/config
+music
