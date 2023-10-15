@@ -97,14 +97,14 @@ def get_song_duration(song_id: str) -> float:
 def download_track(mode: str, track_id: str, extra_keys={}, disable_progressbar=False) -> None:
     """ Downloads raw song audio from Spotify """
 
+    prepareDownloadLoader = Loader("Preparing download...");
+    prepareDownloadLoader.start()
+
     try:
         output_template = ZSpotify.CONFIG.get_output(mode)
 
         (artists, genres, album_name, name, image_url, release_year, disc_number,
          track_number, scraped_song_id, is_playable, duration_ms) = get_song_info(track_id)
-        
-        prepareDownloadLoader = Loader("Preparing download...");
-        prepareDownloadLoader.start()
         
         song_name = fix_filename(artists[0]) + ' - ' + fix_filename(name)
 
