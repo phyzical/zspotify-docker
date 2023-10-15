@@ -24,11 +24,11 @@ def create_download_directory(download_path: str) -> None:
     """ Create directory and add a hidden file with song ids """
     os.makedirs(download_path, exist_ok=True)
 
-    # add hidden file with song ids
-    hidden_file_path = os.path.join(download_path, '.song_ids')
-    if not os.path.isfile(hidden_file_path):
-        with open(hidden_file_path, 'w', encoding='utf-8') as f:
-            pass
+    # # add hidden file with song ids
+    # hidden_file_path = os.path.join(download_path, '.song_ids')
+    # if not os.path.isfile(hidden_file_path):
+    #     with open(hidden_file_path, 'w', encoding='utf-8') as f:
+    #         pass
 
 
 def get_previously_downloaded() -> List[str]:
@@ -62,10 +62,10 @@ def get_directory_song_ids(download_path: str) -> List[str]:
 
     song_ids = []
 
-    hidden_file_path = os.path.join(download_path, '.song_ids')
-    if os.path.isfile(hidden_file_path):
-        with open(hidden_file_path, 'r', encoding='utf-8') as file:
-            song_ids.extend([line.strip().split('\t')[0] for line in file.readlines()])
+    # hidden_file_path = os.path.join(download_path, '.song_ids')
+    # if os.path.isfile(hidden_file_path):
+    #     with open(hidden_file_path, 'r', encoding='utf-8') as file:
+    #         song_ids.extend([line.strip().split('\t')[0] for line in file.readlines()])
 
     return song_ids
 
@@ -73,11 +73,11 @@ def get_directory_song_ids(download_path: str) -> List[str]:
 def add_to_directory_song_ids(download_path: str, song_id: str, filename: str, author_name: str, song_name: str) -> None:
     """ Appends song_id to .song_ids file in directory """
 
-    hidden_file_path = os.path.join(download_path, '.song_ids')
-    # not checking if file exists because we need an exception
-    # to be raised if something is wrong
-    with open(hidden_file_path, 'a', encoding='utf-8') as file:
-        file.write(f'{song_id}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\t{author_name}\t{song_name}\t{filename}\n')
+    # hidden_file_path = os.path.join(download_path, '.song_ids')
+    # # not checking if file exists because we need an exception
+    # # to be raised if something is wrong
+    # with open(hidden_file_path, 'a', encoding='utf-8') as file:
+    #     file.write(f'{song_id}\t{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\t{author_name}\t{song_name}\t{filename}\n')
 
 
 def get_downloaded_song_duration(filename: str) -> float:
