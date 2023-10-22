@@ -13,6 +13,8 @@ RUN apk add gcc libc-dev zlib zlib-dev jpeg-dev \
 FROM base
 
 COPY --from=builder /install /usr/local
+COPY ./zspotify /app
 RUN git clone https://github.com/shirt-dev/zspotify/ && cp -R zspotify/zspotify /app && rm -rf zspotify
+COPY ./zspotify /app
 WORKDIR /app
 ENTRYPOINT ["/usr/local/bin/python", "__main__.py"]
